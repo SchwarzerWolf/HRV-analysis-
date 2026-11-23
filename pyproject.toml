@@ -1,0 +1,90 @@
+[project]
+name = "hrv"
+version = "0.1.0"
+description = "Пайплайн обработки кардиоинтервалов"
+requires-python = ">=3.12"
+dependencies = [
+    "matplotlib>=3.9",
+    "nolds>=0.6",
+    "numpy>=2.0",
+    "pandas>=2.2",
+    "scipy>=1.13",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.13",
+    "pandas-stubs>=2.2",
+    "pytest>=8.3",
+    "ruff>=0.8",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    # Стиль и PEP 8
+    "E",    # pycodestyle: ошибки PEP 8
+    "W",    # pycodestyle: предупреждения PEP 8
+    "I",    # isort: порядок импортов
+    "N",    # pep8-naming: имена по PEP 8
+    "A",    # flake8-builtins: затенение встроенных имён (list, sum, all...)
+    "ERA",  # eradicate: закомментированный код
+    "D",    # pydocstyle: docstring у модулей, классов, функций и методов (PEP 257)
+
+    # Ошибки и подозрительные места
+    "F",    # pyflakes: неиспользуемые импорты и переменные, неопределённые имена
+    "B",    # flake8-bugbear: типичные ошибки
+    "ARG",  # flake8-unused-arguments: неиспользуемые аргументы
+    "RUF",  # специфичные для ruff проверки
+
+    # Простота и декомпозиция
+    "C90",  # mccabe: слишком сложные функции
+    "PL",   # pylint: магические числа, слишком много аргументов/веток/операторов
+    "SIM",  # flake8-simplify: код, который можно упростить
+    "C4",   # flake8-comprehensions: лишние list()/dict() и неудачные генераторы
+    "RET",  # flake8-return: лишние else после return, лишние переменные перед return
+    "PIE",  # flake8-pie: лишний код (pass, повторы)
+
+    # Современный Python и библиотеки
+    "UP",   # pyupgrade: современный синтаксис Python
+    "PTH",  # flake8-use-pathlib: pathlib вместо os.path и строк
+    "PERF", # perflint: медленные конструкции в циклах
+    "NPY",  # numpy: устаревшие и опасные вызовы numpy
+    "PD",   # pandas-vet: антипаттерны pandas
+]
+ignore = [
+    "RUF001", "RUF002", "RUF003",  # кириллица в строках и комментариях — это нормально
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"  # формат docstring: Args:, Returns:, Raises:
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D", "PLR2004"]  # в тестах docstring и «магические» ожидаемые значения не нужны
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-args = 5
+max-branches = 12
+max-statements = 50
+
+[tool.mypy]
+python_version = "3.12"
+disallow_untyped_defs = true      # у всех функций аннотированы аргументы и возвращаемое значение
+disallow_incomplete_defs = true   # нельзя аннотировать только часть аргументов
+check_untyped_defs = true
+warn_return_any = true
+warn_unused_ignores = true        # лишние `# type: ignore` тоже ошибка
+no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+module = ["nolds", "nolds.*", "scipy", "scipy.*"]
+ignore_missing_imports = true     # у этих библиотек нет аннотаций типов
