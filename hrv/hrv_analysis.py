@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-import math
 import matplotlib
 
 matplotlib.use("Agg")
@@ -8,6 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 from scipy.interpolate import CubicSpline
 import nolds
+from analysis.intervals import HISTOGRAM_EDGES, REFERENCE_MODE_MS, IntervalSeries, time_metrics
 
 files = [
     "./hrv/data/subject_01.csv",
@@ -34,61 +34,23 @@ for f in files:
         continue
     print("Прочитано интервалов: ", raw.size)
 
-    clean = []
-    for v in raw:
-        if v >= 300 and v <= 2000:
-            clean.append(v)
-    print("Удалено выбросов: ", raw.size - len(clean))
-
-    filtered = [clean[0]]
-    for i in range(1, len(clean)):
-        if abs(clean[i] - filtered[-1]) / filtered[-1] < 0.2:
-            filtered.append(clean[i])
-    print("Удалено экстрасистол: ", len(clean) - len(filtered))
-
-    raw_data = pd.DataFrame(filtered)
-
-    M = raw_data[0].mean()
-    print("Среднее значение: ", np.round(M, 2))
-
-    SDNN = 0
-    for i in raw_data[0]:
-        SDNN += math.pow(i - M, 2)
-
-    SDNN = math.sqrt(SDNN / (raw_data[0].size - 1))
-    print("Среднеквадратическое отклонение SDNN: ", np.round(SDNN, 2))
-
-    CV = SDNN / M * 100
-    print("Коэффициент вариации: ", np.round(CV, 2), "%")
-
-    RMSSD = 0
-    for i in range(raw_data[0].size - 1):
-        RMSSD += math.pow(raw_data[0][i] - raw_data[0][i + 1], 2)
-
-    RMSSD = math.sqrt(RMSSD / (raw_data[0].size - 1))
-    print("среднеквадратическая разностная характеристика RMSSD: ", np.round(RMSSD, 2))
-
+    series = IntervalSeries.from_raw(raw.to_numpy(dtype=float))
+    print("Удалено выбросов: ", series.outliers)
+    print("Удалено экстрасистол: ", series.abrupt_changes)
+    metrics = time_metrics(series.values)
+    raw_data = pd.DataFrame(series.values)
+    print("Среднее значение: ", np.round(metrics.mean, 2))
+    print("Среднеквадратическое отклонение SDNN: ", np.round(metrics.sdnn, 2))
+    print("Коэффициент вариации: ", np.round(metrics.variation_percent, 2), "%")
+    print("среднеквадратическая разностная характеристика RMSSD: ", np.round(metrics.rmssd, 2))
     plt.figure(figsize=(20, 8))
-    data = plt.hist(raw_data[0], bins=range(400, 1300, 50))
+    plt.hist(series.values, bins=HISTOGRAM_EDGES)
     plt.savefig("output/hrv_hist_" + f[-14:-4] + ".png")
     plt.close()
-
-    Am0 = max(data[0]) / raw_data[0].size * 100
-    print("Амплитуда моды: ", np.round(Am0, 4))
-
-    M0 = (950 + 1000) / 2.0
-    print("Мода: ", M0)
-
-    MxDMn = 0
-
-    for interval in data[0]:
-        if interval != 0:
-            MxDMn += 50
-
-    print("Вариационный размах: ", np.round(MxDMn, 2))
-
-    IN = Am0 / (2 * M0 * MxDMn) * 1000000
-    print("Индекс напряжения регуляторных систем: ", np.round(IN, 2))
+    print("Амплитуда моды: ", np.round(metrics.mode_amplitude, 4))
+    print("Мода: ", REFERENCE_MODE_MS)
+    print("Вариационный размах: ", metrics.occupied_range)
+    print("Индекс напряжения регуляторных систем: ", np.round(metrics.stress, 2))
 
     fig, ax = plt.subplots(1, figsize=(60, 30))
     x = raw_data[0] - raw_data[0].mean()
@@ -204,24 +166,14 @@ for f in files:
 
     print("Показатель флуктуации a", np.round(fluctuation, 2))
 
-    if SDNN < 70:
-        state = "сниженная вариабельность"
-    elif SDNN < 100:
-        state = "нормальная вариабельность"
-    else:
-        state = "повышенная вариабельность"
-
-    if IN > 35:
-        state = state + ", напряжение"
-    elif IN < 30:
-        state = state + ", расслабление"
+    state = metrics.state
     print("Состояние: ", state)
 
     names.append(f[-14:-4])
-    means.append(np.round(M, 2))
-    sdnns.append(np.round(SDNN, 2))
-    rmssds.append(np.round(RMSSD, 2))
-    stress.append(np.round(IN, 2))
+    means.append(np.round(metrics.mean, 2))
+    sdnns.append(np.round(metrics.sdnn, 2))
+    rmssds.append(np.round(metrics.rmssd, 2))
+    stress.append(np.round(metrics.stress, 2))
     lfhf.append(np.round(lf / hf, 2))
     hurst.append(np.round(herstIndex, 2))
     states.append(state)
