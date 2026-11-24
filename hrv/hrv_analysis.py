@@ -5,8 +5,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
-from scipy.interpolate import CubicSpline
-import nolds
+from analysis.signals import autocorrelation, fractal_indices, ratio, resample, spectrum, time_axis
 from analysis.intervals import HISTOGRAM_EDGES, REFERENCE_MODE_MS, IntervalSeries, time_metrics
 
 files = [
@@ -53,9 +52,8 @@ for f in files:
     print("Индекс напряжения регуляторных систем: ", np.round(metrics.stress, 2))
 
     fig, ax = plt.subplots(1, figsize=(60, 30))
-    x = raw_data[0] - raw_data[0].mean()
-    acf = np.correlate(x, x, mode="full")[x.size - 1 :] / np.sum(x**2)
-    ax.stem(range(129), acf[:129])
+    acf = autocorrelation(series.values)
+    ax.stem(range(acf.size), acf)
     plt.savefig("output/hrv_acf_" + f[-14:-4] + ".png")
     plt.close()
     print("Автокорреляция, сдвиг 1: ", np.round(acf[1], 2))
@@ -86,12 +84,7 @@ for f in files:
 
     y = raw_data[0]
 
-    x = []
-    currentTimeStamp = 0
-
-    for record in y:
-        x.append(currentTimeStamp / 1000)
-        currentTimeStamp += record
+    x = time_axis(series.values)
 
     plt.figure(figsize=(20, 8))
     plt.scatter(x, y)
@@ -100,10 +93,7 @@ for f in files:
     plt.savefig("output/hrv_rhythmogram_" + f[-14:-4] + ".png")
     plt.close()
 
-    xnew = np.arange(0, x[len(x) - 1], 3)
-
-    f2 = CubicSpline(x, y)
-    ynew = f2(xnew)
+    xnew, ynew = resample(x, series.values)
 
     plt.figure(figsize=(20, 8))
     plt.plot(xnew, ynew)
@@ -112,57 +102,26 @@ for f in files:
     plt.savefig("output/hrv_pulsogram_" + f[-14:-4] + ".png")
     plt.close()
 
-    fData = np.fft.fft((y - y.mean()) / y.max())
-    frequancy = np.fft.fftfreq(y.shape[-1])
-
-    cuttedData = frequancy[0 : len(frequancy) // 2]
-    fDataFiltered = fData[0 : len(fData) // 2]
-
-    fDataNormalised = 2 * np.abs(np.power(fDataFiltered, 2))
-
+    bands = spectrum(series.values)
     plt.figure(figsize=(20, 8))
-    plt.plot(cuttedData, fDataNormalised)
+    plt.plot(bands.frequencies, bands.plot_power)
     plt.savefig("output/hrv_spectrum_" + f[-14:-4] + ".png")
     plt.close()
 
-    data = np.abs(np.power(fData, 2))
+    print(np.round(bands.total, 2))
 
-    hf = 0
-    for i in range(0, len(frequancy)):
-        if frequancy[i] >= 0.15 and frequancy[i] < 0.4:
-            hf += data[i]
+    print("Высокочастотный диапазон: ", np.round(ratio(bands.hf, bands.total), 2))
+    print("Низкочастотный диапазон: ", np.round(ratio(bands.lf, bands.total), 2))
+    print("Очень низкочастотный диапазон: ", np.round(ratio(bands.vlf, bands.total), 2))
+    print("Ультра низкочастотный компонент: ", np.round(ratio(bands.ulf, bands.total), 2))
 
-    lf = 0
-    for i in range(0, len(frequancy)):
-        if frequancy[i] >= 0.04 and frequancy[i] < 0.15:
-            lf += data[i]
+    print("Индекс централизации: ", np.round(ratio(bands.vlf + bands.lf, bands.hf), 2))
+    print("Индекс вагосимпатического взаимодействия: ", np.round(ratio(bands.lf, bands.hf), 2))
+    print("Индекс активации подкорковых нервных центров: ", np.round(ratio(bands.lf, bands.vlf), 2))
 
-    vlf = 0
-    for i in range(0, len(frequancy)):
-        if frequancy[i] >= 0.015 and frequancy[i] < 0.04:
-            vlf += data[i]
-
-    ulf = 0
-    for i in range(0, len(frequancy)):
-        if frequancy[i] >= 0 and frequancy[i] <= 0.015:
-            ulf += data[i]
-
-    all = hf + lf + vlf + ulf
-    print(np.round(all, 2))
-
-    print("Высокочастотный диапазон: ", np.round(hf / all, 2))
-    print("Низкочастотный диапазон: ", np.round(lf / all, 2))
-    print("Очень низкочастотный диапазон: ", np.round(vlf / all, 2))
-    print("Ультра низкочастотный компонент: ", np.round(ulf / all, 2))
-
-    print("Индекс централизации: ", np.round((vlf + lf) / hf, 2))
-    print("Индекс вагосимпатического взаимодействия: ", np.round(lf / hf, 2))
-    print("Индекс активации подкорковых нервных центров: ", np.round(lf / vlf, 2))
-
-    herstIndex = nolds.hurst_rs(raw_data[0])
+    herstIndex, fluctuation = fractal_indices(series.values)
     print("Индекс Херста: ", np.round(herstIndex, 2))
 
-    fluctuation = nolds.dfa(raw_data[0])
 
     print("Показатель флуктуации a", np.round(fluctuation, 2))
 
@@ -174,7 +133,7 @@ for f in files:
     sdnns.append(np.round(metrics.sdnn, 2))
     rmssds.append(np.round(metrics.rmssd, 2))
     stress.append(np.round(metrics.stress, 2))
-    lfhf.append(np.round(lf / hf, 2))
+    lfhf.append(np.round(ratio(bands.lf, bands.hf), 2))
     hurst.append(np.round(herstIndex, 2))
     states.append(state)
 
