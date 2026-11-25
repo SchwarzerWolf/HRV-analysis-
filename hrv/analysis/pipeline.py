@@ -3,6 +3,7 @@
 # В итоговом скрипте пайплайна создание отдельного общего класса необязательно,
 # так как классы из предыдущих этапов уже описывают очищенные интервалы и
 # рассчитанные показатели.
+import logging
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -13,6 +14,8 @@ from .intervals import FloatArray, IntervalSeries, time_metrics
 from .plots import save_plots
 from .report import print_spectrum, print_time_metrics, write_summary
 from .signals import autocorrelation, fractal_indices, ratio, spectrum
+
+logger = logging.getLogger(__name__)
 
 DATA_DIR = Path("hrv/data")
 OUTPUT_DIR = Path("output")
@@ -61,20 +64,21 @@ def main() -> None:
     rows = []
     for subject in SUBJECTS:
         input_file_path = DATA_DIR / f"{subject}.csv"
-        print(f"===== Анализируем данные из таблицы ./{input_file_path} =====")
+        logger.info("Чтение файла ./%s", input_file_path)
         try:
             table = pd.read_csv(input_file_path, header=None, usecols=[0])
             raw = table[0].to_numpy(dtype=float)
-        except (OSError, ValueError):
-            print(f"Не удалось прочитать файл ./{input_file_path}")
+        except (OSError, ValueError) as error:
+            logger.warning("Не удалось прочитать файл ./%s: %s", input_file_path, error)
             continue
 
         try:
             series = IntervalSeries.from_raw(raw)
         except ValueError as error:
-            print(f"Файл невалиден ./{input_file_path}: {error}")
+            logger.warning("Файл невалиден ./%s: %s", input_file_path, error)
             continue
 
+        print(f"===== Анализируем данные из таблицы ./{input_file_path} =====")
         print("Прочитано интервалов: ", len(raw))
         print("Удалено выбросов: ", series.outliers)
         print("Удалены внеочередные сокращениея сердца (экстрасистолы): ", series.abrupt_changes)
@@ -82,5 +86,5 @@ def main() -> None:
         rows.append(row)
 
     output_file_path = OUTPUT_DIR / "hrv_summary.csv"
-    print(f"===== Сохранение сводной статистики: {output_file_path} =====")
     write_summary(rows, output_file_path)
+    logger.info("Сводная таблица сохранена в %s (записей: %d)", output_file_path, len(rows))
