@@ -1,12 +1,12 @@
-import pandas as pd
-import numpy as np
-import matplotlib
+from pathlib import Path
 
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.patches import Ellipse
-from analysis.signals import autocorrelation, fractal_indices, ratio, resample, spectrum, time_axis
-from analysis.intervals import HISTOGRAM_EDGES, REFERENCE_MODE_MS, IntervalSeries, time_metrics
+import numpy as np
+import pandas as pd
+
+from analysis.intervals import REFERENCE_MODE_MS, IntervalSeries, time_metrics
+from analysis.plots import save_plots
+from analysis.signals import autocorrelation, fractal_indices, ratio, spectrum
 
 files = [
     "./hrv/data/subject_01.csv",
@@ -24,6 +24,8 @@ lfhf = []
 hurst = []
 states = []
 
+plt.switch_backend("Agg")
+
 for f in files:
     print("=====", f, "=====")
     try:
@@ -37,77 +39,20 @@ for f in files:
     print("Удалено выбросов: ", series.outliers)
     print("Удалено экстрасистол: ", series.abrupt_changes)
     metrics = time_metrics(series.values)
-    raw_data = pd.DataFrame(series.values)
     print("Среднее значение: ", np.round(metrics.mean, 2))
     print("Среднеквадратическое отклонение SDNN: ", np.round(metrics.sdnn, 2))
     print("Коэффициент вариации: ", np.round(metrics.variation_percent, 2), "%")
     print("среднеквадратическая разностная характеристика RMSSD: ", np.round(metrics.rmssd, 2))
-    plt.figure(figsize=(20, 8))
-    plt.hist(series.values, bins=HISTOGRAM_EDGES)
-    plt.savefig("output/hrv_hist_" + f[-14:-4] + ".png")
-    plt.close()
     print("Амплитуда моды: ", np.round(metrics.mode_amplitude, 4))
     print("Мода: ", REFERENCE_MODE_MS)
     print("Вариационный размах: ", metrics.occupied_range)
     print("Индекс напряжения регуляторных систем: ", np.round(metrics.stress, 2))
 
-    fig, ax = plt.subplots(1, figsize=(60, 30))
     acf = autocorrelation(series.values)
-    ax.stem(range(acf.size), acf)
-    plt.savefig("output/hrv_acf_" + f[-14:-4] + ".png")
-    plt.close()
     print("Автокорреляция, сдвиг 1: ", np.round(acf[1], 2))
 
-    x_data = raw_data.iloc[:299]
-    y_data = raw_data.iloc[1:300]
-
-    plt.figure(figsize=(20, 8))
-    plt.xlim(400, 1300)
-    plt.ylim(400, 1300)
-    plt.scatter(x_data, y_data)
-
-    x1 = range(400, 1300, 1)
-    y1 = range(400, 1300, 1)
-    plt.plot(x1, y1)
-
-    ax = plt.gca()
-
-    center = np.array([975, 975])
-
-    ellipse = Ellipse(
-        xy=center, width=300, height=110, edgecolor="r", fc="None", ls="solid", lw=3, angle=45
-    )
-
-    ax.add_patch(ellipse)
-    plt.savefig("output/hrv_scatter_" + f[-14:-4] + ".png")
-    plt.close()
-
-    y = raw_data[0]
-
-    x = time_axis(series.values)
-
-    plt.figure(figsize=(20, 8))
-    plt.scatter(x, y)
-    plt.plot(x, y)
-    plt.title("Кардиоритмограмма")
-    plt.savefig("output/hrv_rhythmogram_" + f[-14:-4] + ".png")
-    plt.close()
-
-    xnew, ynew = resample(x, series.values)
-
-    plt.figure(figsize=(20, 8))
-    plt.plot(xnew, ynew)
-    plt.scatter(xnew, ynew)
-    plt.title("Пульсограмма")
-    plt.savefig("output/hrv_pulsogram_" + f[-14:-4] + ".png")
-    plt.close()
-
     bands = spectrum(series.values)
-    plt.figure(figsize=(20, 8))
-    plt.plot(bands.frequencies, bands.plot_power)
-    plt.savefig("output/hrv_spectrum_" + f[-14:-4] + ".png")
-    plt.close()
-
+    save_plots(Path("output"), Path(f).stem, series.values, acf, bands)
     print(np.round(bands.total, 2))
 
     print("Высокочастотный диапазон: ", np.round(ratio(bands.hf, bands.total), 2))

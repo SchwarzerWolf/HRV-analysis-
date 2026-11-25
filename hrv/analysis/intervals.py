@@ -1,11 +1,12 @@
-"""Очистка кардиоинтервалов и расчёт временных показателей."""
+"""Очистка кардиологических интервалов и расчёт временных показателей."""
 
 from dataclasses import dataclass
 
 import numpy as np
 from numpy.typing import NDArray
 
-type FloatArray = NDArray[np.float64]
+type FloatArray = NDArray[np.float64]  # объявляем новый тип, чтобы удобнее было
+# использовать далее
 MIN_INTERVAL_MS = 300
 MAX_INTERVAL_MS = 2000
 MAX_RELATIVE_CHANGE = 0.2
@@ -20,12 +21,12 @@ RELAXATION_THRESHOLD = 30
 STRESS_THRESHOLD = 35
 
 
-@dataclass
+@dataclass  # используется dataclass для автоматического создания __init__, __repr__ и __eq__
 class IntervalSeries:
     """Прошедшие фильтрацию интервалы и число исключений на каждом шаге."""
 
-    values: FloatArray
-    outliers: int
+    values: FloatArray  # сразу создается init, где помещаются переменные
+    outliers: int  # задаются также типы входных данных
     abrupt_changes: int
 
     @classmethod
