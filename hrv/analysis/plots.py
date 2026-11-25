@@ -54,7 +54,7 @@ def _save_time_plot(times: FloatArray, values: FloatArray, title: str, path: Pat
 def save_plots(
     output: Path, subject: str, values: FloatArray, acf: FloatArray, bands: Spectrum
 ) -> None:
-    """Сохраняет шесть графиков записи.
+    """Сохраняет шесть графиков для одной записи из данных.
 
     Args:
         output: Каталог для PNG.

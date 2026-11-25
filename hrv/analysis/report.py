@@ -12,11 +12,11 @@ SUMMARY_COLUMNS = ["subject", "mean", "sdnn", "rmssd", "stress_index", "lf_hf", 
 
 
 def print_time_metrics(metrics: TimeMetrics) -> None:
-    """Печатает временные показатели с точностью эталонного отчёта."""
+    """Выводит временные характеристики с точностью, соответствующей контрольному отчёту."""
     print("Среднее значение: ", np.round(metrics.mean, 2))
     print("Среднеквадратическое отклонение SDNN: ", np.round(metrics.sdnn, 2))
     print("Коэффициент вариации: ", np.round(metrics.variation_percent, 2), "%")
-    print("среднеквадратическая разностная характеристика RMSSD: ", np.round(metrics.rmssd, 2))
+    print("Среднеквадратическая разностная характеристика RMSSD: ", np.round(metrics.rmssd, 2))
     print("Амплитуда моды: ", np.round(metrics.mode_amplitude, 4))
     print("Мода: ", REFERENCE_MODE_MS)
     print("Вариационный размах: ", metrics.occupied_range)
@@ -24,7 +24,7 @@ def print_time_metrics(metrics: TimeMetrics) -> None:
 
 
 def print_spectrum(bands: Spectrum) -> None:
-    """Печатает общую мощность, доли диапазонов и их отношения."""
+    """Выводит общую мощность, доли диапазонов и их отношения."""
     total = bands.total
     print(np.round(total, 2))
     print("Высокочастотный диапазон: ", np.round(ratio(bands.hf, total), 2))
@@ -37,7 +37,7 @@ def print_spectrum(bands: Spectrum) -> None:
 
 
 def write_summary(rows: list[dict[str, str | float]], path: Path) -> None:
-    """Записывает CSV и показывает ту же таблицу в консоли.
+    """Записывает CSV и дополнительно выводит итоговую таблицу в stdout.
 
     Args:
         rows: Сводные показатели по одной записи в каждом словаре.
@@ -45,5 +45,4 @@ def write_summary(rows: list[dict[str, str | float]], path: Path) -> None:
     """
     summary = pd.DataFrame.from_records(rows, columns=SUMMARY_COLUMNS)
     summary.to_csv(path, index=False)
-    print("=====  Сводка  =====")
     print(summary.to_string())

@@ -1,5 +1,8 @@
 """Чтение записей, запуск анализа и сохранение результатов."""
 
+# В итоговом скрипте пайплайна создание отдельного общего класса необязательно,
+# так как классы из предыдущих этапов уже описывают очищенные интервалы и
+# рассчитанные показатели.
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -57,25 +60,27 @@ def main() -> None:
     OUTPUT_DIR.mkdir(exist_ok=True)
     rows = []
     for subject in SUBJECTS:
-        path = DATA_DIR / f"{subject}.csv"
-        print(f"===== ./{path} =====")
+        input_file_path = DATA_DIR / f"{subject}.csv"
+        print(f"===== Анализируем данные из таблицы ./{input_file_path} =====")
         try:
-            table = pd.read_csv(path, header=None, usecols=[0])
+            table = pd.read_csv(input_file_path, header=None, usecols=[0])
             raw = table[0].to_numpy(dtype=float)
         except (OSError, ValueError):
-            print(f"Не удалось прочитать файл ./{path}")
+            print(f"Не удалось прочитать файл ./{input_file_path}")
             continue
 
         try:
             series = IntervalSeries.from_raw(raw)
         except ValueError as error:
-            print(f"Пропуск ./{path}: {error}")
+            print(f"Файл невалиден ./{input_file_path}: {error}")
             continue
 
         print("Прочитано интервалов: ", len(raw))
         print("Удалено выбросов: ", series.outliers)
-        print("Удалено экстрасистол: ", series.abrupt_changes)
+        print("Удалены внеочередные сокращениея сердца (экстрасистолы): ", series.abrupt_changes)
         row = process_subject(subject, series.values)
         rows.append(row)
 
-    write_summary(rows, OUTPUT_DIR / "hrv_summary.csv")
+    output_file_path = OUTPUT_DIR / "hrv_summary.csv"
+    print(f"===== Сохранение сводной статистики: {output_file_path} =====")
+    write_summary(rows, output_file_path)
